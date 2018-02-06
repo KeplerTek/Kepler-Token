@@ -1,0 +1,134 @@
+
+pragma solidity ^0.4.18;
+
+library SafeMath {
+
+  /**
+  * @dev Multiplies two numbers, throws on overflow.
+  */
+  function mul(uint256 a, uint256 b) internal pure returns (uint256) {
+    if (a == 0) {
+      return 0;
+    }
+    uint256 c = a * b;
+    assert(c / a == b);
+    return c;
+  }
+
+  /**
+  * @dev Integer division of two numbers, truncating the quotient.
+  */
+  function div(uint256 a, uint256 b) internal pure returns (uint256) {
+    uint256 c = a / b;
+    return c;
+  }
+
+  /**
+  * @dev Substracts two numbers, throws on overflow (i.e. if subtrahend is greater than minuend).
+  */
+  function sub(uint256 a, uint256 b) internal pure returns (uint256) {
+    assert(b <= a);
+    return a - b;
+  }
+
+  /**
+  * @dev Adds two numbers, throws on overflow.
+  */
+  function add(uint256 a, uint256 b) internal pure returns (uint256) {
+    uint256 c = a + b;
+    assert(c >= a);
+    return c;
+  }
+}
+
+interface token {
+    function transfer(address receiver, uint amount) public;
+}
+
+contract Ownable {
+  address public owner;
+
+
+  event OwnershipTransferred(address indexed previousOwner, address indexed newOwner);
+
+
+  /**
+   * @dev The Ownable constructor sets the original `owner` of the contract to the sender
+   * account.
+   */
+  function Ownable() public {
+    owner = msg.sender;
+  }
+
+  /**
+   * @dev Throws if called by any account other than the owner.
+   */
+  modifier onlyOwner() {
+    require(msg.sender == owner);
+    _;
+  }
+
+  /**
+   * @dev Allows the current owner to transfer control of the contract to a newOwner.
+   * @param newOwner The address to transfer ownership to.
+   */
+  function transferOwnership(address newOwner) public onlyOwner {
+    require(newOwner != address(0));
+    OwnershipTransferred(owner, newOwner);
+    owner = newOwner;
+  }
+
+}
+
+contract saleKEP is Ownable {
+
+	using SafeMath for uint256;
+
+    uint public price;
+    token public tokenReward;
+    event FundTransfer(address backer, uint amount, bool isContribution);
+
+    /**
+     * Constrctor function
+     *
+     * Setup the owner
+     */
+    function saleKEP(
+        uint tokenPrice,
+        address addressOfTokenUsedAsReward
+    ) public {
+        price = tokenPrice * 1 ether / (10 ** 9);
+        tokenReward = token(addressOfTokenUsedAsReward);
+    }
+
+    function () payable public {
+    	require(msg.value != 0);
+        uint amount = msg.value;
+        tokenReward.transfer(msg.sender, amount / price);
+        FundTransfer(msg.sender, amount, true);
+    }
+
+	// change token price X 0.0001 Ether
+    function changePrice(uint256 newPrice) onlyOwner public {
+        price = newPrice * 1 ether / (10 ** 9);
+    }
+
+
+	// withdraw ether from contract
+    function withdraw(uint value) onlyOwner public {
+        uint amount = value * 1 ether;
+        owner.transfer(amount);
+        FundTransfer(owner, amount, false);
+    }
+
+	// withdraw tokens from contract
+    function withdrawTokens(address otherTokenAddress, uint256 amount) onlyOwner public {
+        token otherToken = token(otherTokenAddress);
+        otherToken.transfer(owner, amount);
+    }
+
+	// Destroy contract after deadline
+    function destroy() onlyOwner public {
+        selfdestruct(owner);
+    }
+}
